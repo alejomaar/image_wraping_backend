@@ -47,5 +47,12 @@ output "function_uri" {
   value = google_cloudfunctions2_function.default.service_config[0].uri
 }
 
+output "bucketname" { 
+  value = google_storage_bucket.bucket.name
+}
+
+output "archivename" { 
+  value = google_storage_bucket_object.archive.name
+}
 
 
