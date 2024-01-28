@@ -1,56 +1,72 @@
-import functions_framework
 import flask
-from flask import jsonify, send_file
+from flask import send_file
 import cv2
 import numpy as np
 import requests
 from io import BytesIO
+import functions_framework
 
 
-def read_image_from_url(url):
-    # Send an HTTP GET request to the URL
+def read_image_from_url(url: str) -> np.ndarray:
+    """
+    Reads an image from a given URL.
+
+    Args:
+    - url (str): URL of the image to be downloaded.
+
+    Returns:
+    - np.ndarray: The image as a NumPy array.
+    """
     response = requests.get(url)
-
-    # Raise an exception if the request was unsuccessful
     response.raise_for_status()
-
-    # Convert the response content to a NumPy array
     image_array = np.frombuffer(response.content, dtype=np.uint8)
+    return cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
-    # Decode the NumPy array to an OpenCV image
-    image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+def warp_image(image: np.ndarray, src_points: np.ndarray, w: int, h: int) -> np.ndarray:
+    """
+    Warps an image from src_points to a new dimension (w, h).
 
-    # If needed, convert color from BGR to RGB
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    Args:
+    - image (np.ndarray): Input image.
+    - src_points (np.ndarray): Array of four source points in the order 
+                               top-left, top-right, bottom-left, bottom-right.
+    - w (int): Width of the output image.
+    - h (int): Height of the output image.
 
-    return image
-
+    Returns:
+    - np.ndarray: Warped image.
+    """
+    dst_points = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
+    matrix = cv2.getPerspectiveTransform(src_points, dst_points)
+    return cv2.warpPerspective(image, matrix, (w, h))
 
 @functions_framework.http
-def main(request: flask.Request):
-    """HTTP Cloud Function.
+def main(request: flask.Request) -> flask.Response:
+    """
+    HTTP Cloud Function to warp an image given a URL and source points.
+
     Args:
-        request (flask.Request): The request object.
-        <https://flask.palletsprojects.com/en/1.1.x/api/#incoming-request-data>
+    - request (flask.Request): The Flask request object.
+
     Returns:
-        The response text, or any set of values that can be turned into a
-        Response object using `make_response`
-        <https://flask.palletsprojects.com/en/1.1.x/api/#flask.make_response>.
+    - flask.Response: The Flask response object.
     """
     request_json = request.get_json(silent=True)
     image_url = request_json.get("url")
+    src_points = np.float32(request_json.get("src_points"))
+    width = request_json.get("width")
+    height = request_json.get("height")
 
     if not image_url:
-        return "Image does not exist", 400
+        return "Image URL is required", 400
 
-    opencv_img = read_image_from_url(image_url)
-
-    is_ok, buffer = cv2.imencode(".jpg", opencv_img)
-    if not is_ok:
-        return "Error converting image to JPEG format", 500
-
-    # Convert buffer to a byte stream
-    byte_io = BytesIO(buffer)
-
-    # Send the byte stream as a response
-    return send_file(byte_io, mimetype="image/jpeg")
+    try:
+        image = read_image_from_url(image_url)
+        warped = warp_image(image, src_points, width, height)
+        is_ok, buffer = cv2.imencode(".jpg", warped)
+        if not is_ok:
+            return "Error converting image to JPEG format", 500
+        byte_io = BytesIO(buffer)
+        return send_file(byte_io, mimetype="image/jpeg")
+    except Exception as e:
+        return f"An error occurred: {str(e)}", 500
