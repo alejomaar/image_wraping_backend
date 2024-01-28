@@ -27,7 +27,7 @@ share/python-wheels/
 MANIFEST
 build/*
 !build/.gitkeep 
-./*/.terraform
+infrastructure/.terraform
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
