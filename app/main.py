@@ -1,29 +1,26 @@
 import base64
-import json
+import cv2
+import numpy as np
 
+def main(event: dict):
+    # Assume the event dictionary has the base64 string under a key 'image'
+    base64_image = event['image']
 
-def decode_pubsub_message(event: dict):
-    try:
-        if "data" not in event:
-            raise ValueError("No 'data' key in the event")
+    # Decode the base64 string to bytes
+    image_data = base64.b64decode(base64_image)
 
-        pubsub_message = base64.b64decode(event["data"]).decode("utf-8")
-        data = json.loads(pubsub_message)
-        return data
+    # Convert bytes data to a numpy array
+    nparr = np.frombuffer(image_data, np.uint8)
 
-    except ValueError as ve:
-        print("ValueError: {}".format(str(ve)))
-    except json.JSONDecodeError as je:
-        print("JSONDecodeError: {}".format(str(je)))
-    except Exception as e:
-        print("Unexpected Error: {}".format(str(e)))
+    # Read image from numpy array
+    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
+    # Process the image if necessary
+    # (In this case, no processing is done)
 
-def main(event: dict, context):
-    print(
-        "BEGIN messageId {} published at {}".format(context.event_id, context.timestamp)
-    )
+    # Re-encode the image to base64
+    _, buffer = cv2.imencode('.jpg', image)
+    encoded_image = base64.b64encode(buffer).decode()
 
-    pub_sub_message = decode_pubsub_message(event)
-    print(pub_sub_message)
-    return pub_sub_message
+    return encoded_image
+
