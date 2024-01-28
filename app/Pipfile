@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 functions-framework = "==3.*"
 opencv-python-headless = "*"
+requests = "*"
 
 [dev-packages]
 ipykernel = "*"

@@ -1,42 +1,24 @@
-import base64
-import cv2
-import numpy as np
 import functions_framework
+import flask
+from flask import jsonify
 
-
-
-def base64_to_img(base64_image: str):
-    image_data = base64.b64decode(base64_image)
-
-    # Convert bytes data to a numpy array
-    nparr = np.frombuffer(image_data, np.uint8)
-
-    # Read image from numpy array
-    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    return image
 
 @functions_framework.http
-def main(request: dict):
-    """HTTP Cloud Function for POST requests.
+def main(request: flask.Request):
+    """HTTP Cloud Function.
     Args:
         request (flask.Request): The request object.
+        <https://flask.palletsprojects.com/en/1.1.x/api/#incoming-request-data>
+    Returns:
+        The response text, or any set of values that can be turned into a
+        Response object using `make_response`
+        <https://flask.palletsprojects.com/en/1.1.x/api/#flask.make_response>.
     """
-    # Assume the event dictionary has the base64 string under a key 'image'
-    
-    
-    if request.method != 'POST':
-        return 'This function only accepts POST requests.', 405
-    
-    data = request.get_json()
-    base64_image = data['image']
+    request_json = request.get_json(silent=True)
+    image_base64 = request_json.get("image_base64")
 
-    image = base64_to_img(base64_image)
+    response = {"ok": True, "data": image_base64}
 
-    # Process the image if necessary
-    # (In this case, no processing is done)
-
-    # Re-encode the image to base64
-    _, buffer = cv2.imencode(".jpg", image)
-    encoded_image = base64.b64encode(buffer).decode()
-
-    return encoded_image
+    if not image_base64:
+        return "Image does not exist", 400
+    return jsonify(response), 200
