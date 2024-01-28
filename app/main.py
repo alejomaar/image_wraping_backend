@@ -1,26 +1,19 @@
-import base64
-import cv2
-import numpy as np
+import functions_framework
 
-def main(event: dict):
-    # Assume the event dictionary has the base64 string under a key 'image'
-    base64_image = event['image']
+@functions_framework.http
+def main(request):
+    """HTTP Cloud Function.
+    Args:
+        request (flask.Request): The request object.
+        <https://flask.palletsprojects.com/en/1.1.x/api/#incoming-request-data>
+    Returns:
+        The response text, or any set of values that can be turned into a
+        Response object using `make_response`
+        <https://flask.palletsprojects.com/en/1.1.x/api/#flask.make_response>.
+    """
+    request_json = request.get_json(silent=True)
+    image_base64 =request_json.get('image_base64')
 
-    # Decode the base64 string to bytes
-    image_data = base64.b64decode(base64_image)
-
-    # Convert bytes data to a numpy array
-    nparr = np.frombuffer(image_data, np.uint8)
-
-    # Read image from numpy array
-    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-    # Process the image if necessary
-    # (In this case, no processing is done)
-
-    # Re-encode the image to base64
-    _, buffer = cv2.imencode('.jpg', image)
-    encoded_image = base64.b64encode(buffer).decode()
-
-    return encoded_image
-
+    if not  image_base64:
+        return "Image does not exist", 400
+    return "image found", 200

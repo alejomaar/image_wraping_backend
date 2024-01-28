@@ -8,7 +8,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
+build/../*
 develop-eggs/
 dist/
 downloads/
@@ -25,7 +25,8 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-build/
+build/*
+!build/.gitkeep 
 ./*/.terraform
 
 # PyInstaller

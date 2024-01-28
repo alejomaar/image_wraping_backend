@@ -2,10 +2,14 @@ data "archive_file" "app_zip" {
   type        = "zip"
   source_dir  = "../app"
   output_path = "../build/app.zip"
+  excludes    = concat(
+    tolist(fileset("../app", "notebook/*")),
+    tolist(fileset("../app", "img/*"))
+  )
 }
 
 resource "google_storage_bucket" "bucket" {
-  name     = "${var.app_name}-test-bucket"
+  name     = "${var.app_name}-app-bucket"
   location = "US"
 }
 
@@ -16,22 +20,32 @@ resource "google_storage_bucket_object" "archive" {
   source = data.archive_file.app_zip.output_path
 }
 
-resource "google_cloudfunctions_function" "function" {
-  name        = "terrafom-function"
-  description = "description"
-  runtime     = "python312"
+resource "google_cloudfunctions2_function" "default" {
+  name        = "function"
+  location    = var.gcp_region
+  description = "a new function"
 
-  available_memory_mb   = 128
-  timeout               = 60
-  source_archive_bucket = google_storage_bucket.bucket.name
-  source_archive_object = google_storage_bucket_object.archive.name
-  entry_point           = "main"
-  labels = {
-    my-label = "my-label-value"
+  build_config {
+    runtime     = "python312"
+    entry_point = "main" # Set the entry point
+    source {
+      storage_source {
+        bucket = google_storage_bucket.bucket.name
+        object = google_storage_bucket_object.archive.name
+      }
+    }
   }
-  event_trigger {
-    event_type = "providers/cloud.pubsub/eventTypes/topic.publish"
-    resource   = "projects/nth-micron-411415/topics/terraform-test"
+
+  service_config {
+    max_instance_count = 1
+    available_memory   = "256M"
+    timeout_seconds    = 60
   }
 }
+
+output "function_uri" { 
+  value = google_cloudfunctions2_function.default.service_config[0].uri
+}
+
+
 
