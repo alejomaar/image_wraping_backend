@@ -6,6 +6,14 @@ import functions_framework
 import numpy as np
 import requests
 from flask import send_file
+from pydantic import BaseModel, Field, HttpUrl, ValidationError
+
+
+class Body(BaseModel):
+    src_points: list[list[int]]
+    width: int = Field(..., gt=0)
+    height: int = Field(..., gt=0)
+    url: HttpUrl
 
 
 def read_image_from_url(url: str) -> np.ndarray:
@@ -56,18 +64,18 @@ def main(request: flask.Request) -> flask.Response:
     """
 
     try:
-        body = request.get_json(silent=True)
-        # body = Body(**request_json)
+        request_json = request.get_json(silent=True)
+        body = Body(**request_json)
 
-        image = read_image_from_url(body["url"])
-        warped = warp_image(
-            image, np.float32(body["src_points"]), body["width"], body["height"]
-        )
+        image = read_image_from_url(body.url)
+        warped = warp_image(image, np.float32(body.src_points), body.width, body.height)
         is_ok, buffer = cv2.imencode(".jpg", warped)
         if not is_ok:
             return "Error converting image to JPEG format", 500
         byte_io = BytesIO(buffer)
         return send_file(byte_io, mimetype="image/jpeg")
+    except ValidationError as e:
+        return f"Body format is incorrect: {str(e)}", 400
 
     except Exception as e:
         return f"An error occurred: {str(e)}", 500
