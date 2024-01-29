@@ -9,6 +9,7 @@ opencv-python-headless = "*"
 requests = "*"
 pydantic = "*"
 pydantic-core = "*"
+flask-cors = "*"
 
 [dev-packages]
 ipykernel = "*"

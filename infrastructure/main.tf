@@ -4,7 +4,8 @@ data "archive_file" "app_zip" {
   output_path = "../build/app.zip"
   excludes    = concat(
     tolist(fileset("../app", "notebook/*")),
-    tolist(fileset("../app", "img/*"))
+    tolist(fileset("../app", "img/*")),
+    ["../app/Pipfile", "../app/Pipfile.lock"]
   )
 }
 
@@ -43,6 +44,18 @@ resource "google_cloudfunctions2_function" "default" {
   }
 }
 
+# Add full admin permissions publicly
+resource "google_cloud_run_service_iam_binding" "default" {
+  location = google_cloudfunctions2_function.default.location
+  service  = google_cloudfunctions2_function.default.name
+  role     = "roles/run.invoker"
+  members = [
+    "allUsers"
+  ]
+}
+
+
+
 output "function_uri" { 
   value = google_cloudfunctions2_function.default.service_config[0].uri
 }
@@ -54,5 +67,7 @@ output "bucketname" {
 output "archivename" { 
   value = google_storage_bucket_object.archive.name
 }
+
+
 
 

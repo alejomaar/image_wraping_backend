@@ -5,7 +5,7 @@ import flask
 import functions_framework
 import numpy as np
 import requests
-from flask import send_file
+from flask import make_response, send_file
 from pydantic import BaseModel, Field, HttpUrl, ValidationError
 
 
@@ -26,7 +26,7 @@ def read_image_from_url(url: str) -> np.ndarray:
     Returns:
     - np.ndarray: The image as a NumPy array.
     """
-    response = requests.get(url)
+    response = requests.get(url, timeout=20)
     response.raise_for_status()
     image_array = np.frombuffer(response.content, dtype=np.uint8)
     return cv2.imdecode(image_array, cv2.IMREAD_COLOR)
@@ -62,8 +62,18 @@ def main(request: flask.Request) -> flask.Response:
     Returns:
     - flask.Response: The Flask response object.
     """
-
+    headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "*",
+        "Access-Control-Allow-Headers": "*",
+    }
     try:
+        if request.method == "OPTIONS":
+            # Allows GET requests from any origin with the Content-Type
+            # header and caches preflight response for an 3600s
+            print("Enter headers ")
+            return ("", 204, headers)
+
         request_json = request.get_json(silent=True)
         body = Body(**request_json)
 
@@ -73,7 +83,9 @@ def main(request: flask.Request) -> flask.Response:
         if not is_ok:
             return "Error converting image to JPEG format", 500
         byte_io = BytesIO(buffer)
-        return send_file(byte_io, mimetype="image/jpeg")
+        response = make_response(send_file(byte_io, mimetype="image/jpeg"))
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return response
     except ValidationError as e:
         return f"Body format is incorrect: {str(e)}", 400
 
