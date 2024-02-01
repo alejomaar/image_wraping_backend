@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, HttpUrl, ValidationError
 
 
 class Body(BaseModel):
-    src_points: list[list[int]]
+    src_points: list[list[float]]
     width: int = Field(..., gt=0)
     height: int = Field(..., gt=0)
     url: HttpUrl
@@ -78,7 +78,11 @@ def main(request: flask.Request) -> flask.Response:
         body = Body(**request_json)
 
         image = read_image_from_url(body.url)
-        warped = warp_image(image, np.float32(body.src_points), body.width, body.height)
+        h,w, _ = image.shape
+        src_points = np.float32(body.src_points)
+        src_points[:, 0] *= w
+        src_points[:, 1] *= h
+        warped = warp_image(image, src_points, body.width, body.height)
         is_ok, buffer = cv2.imencode(".jpg", warped)
         if not is_ok:
             return "Error converting image to JPEG format", 500
@@ -87,7 +91,7 @@ def main(request: flask.Request) -> flask.Response:
         response.headers["Access-Control-Allow-Origin"] = "*"
         return response
     except ValidationError as e:
-        return f"Body format is incorrect: {str(e)}", 400
+        return f"Body format is incorrect: {e.errors()}", 400
 
     except Exception as e:
         return f"An error occurred: {str(e)}", 500
