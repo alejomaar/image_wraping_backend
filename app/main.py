@@ -70,7 +70,7 @@ def main(request: flask.Request) -> flask.Response:
     try:
         if request.method == "OPTIONS":
             # Allows GET requests from any origin with the Content-Type
-            # header and caches preflight response for an 3600s
+            # header and caches preflight response for 3600s
             print("Enter headers ")
             return ("", 204, headers)
 
@@ -78,20 +78,21 @@ def main(request: flask.Request) -> flask.Response:
         body = Body(**request_json)
 
         image = read_image_from_url(body.url)
-        h,w, _ = image.shape
+        h, w, _ = image.shape
         src_points = np.float32(body.src_points)
         src_points[:, 0] *= w
         src_points[:, 1] *= h
         warped = warp_image(image, src_points, body.width, body.height)
         is_ok, buffer = cv2.imencode(".jpg", warped)
         if not is_ok:
-            return "Error converting image to JPEG format", 500
+            return "Error converting image to JPEG format", 500, headers
         byte_io = BytesIO(buffer)
         response = make_response(send_file(byte_io, mimetype="image/jpeg"))
-        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers.extend(headers)
         return response
     except ValidationError as e:
-        return f"Body format is incorrect: {e.errors()}", 400
+        return f"Body format is incorrect: {e.errors()}", 400, headers
 
     except Exception as e:
-        return f"An error occurred: {str(e)}", 500
+        return f"An error occurred: {str(e)}", 500, headers
+
